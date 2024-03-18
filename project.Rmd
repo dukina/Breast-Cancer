@@ -1,0 +1,154 @@
+---
+title: "Breast Cancer Detection with Heterogeneous Ensemble Classifier"
+author: "Your Name"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  html_document:
+    toc: true
+---
+
+# Breast Cancer Detection with Heterogeneous Ensemble Classifier
+
+## Introduction
+
+This project aims to develop a heterogeneous ensemble classifier for breast cancer detection using the BreastCancer dataset. The ensemble will combine predictions from multiple classifiers trained using different algorithms.
+
+## Dataset
+
+We'll start by loading the BreastCancer dataset provided by the `mlbench` package and inspecting its structure.
+
+```{r load_dataset, message=FALSE}
+library(mlbench)
+data(BreastCancer)
+str(BreastCancer)
+```
+
+## Data Preprocessing
+
+Before training our classifiers, it's essential to preprocess the data by handling missing values and removing unnecessary columns.
+
+```{r data_preprocessing}
+# Handle missing values
+BreastCancer <- na.omit(BreastCancer)
+
+# Remove the unique identifier
+BreastCancer$Id <- NULL
+```
+
+## Exploratory Data Analysis (EDA)
+
+Let's explore the distribution of classes and visualize relationships between features.
+
+### Class Distribution
+
+```{r class_distribution}
+library(ggplot2)
+ggplot(BreastCancer, aes(x = Class, fill = Class)) +
+  geom_bar() +
+  labs(title = "Class Distribution", x = "Class", y = "Frequency")
+```
+
+### Scatter Plot
+
+```{r scatter_plot}
+ggplot(BreastCancer, aes(x = Cl.thickness, y = Cell.size, color = Class)) +
+  geom_point() +
+  labs(title = "Scatter plot of Cl.thickness vs Cell.size", x = "Cl.thickness", y = "Cell.size", color = "Class")
+```
+
+### Box Plot
+
+```{r box_plot}
+ggplot(BreastCancer, aes(x = Class, y = Cell.shape, fill = Class)) +
+  geom_boxplot() +
+  labs(title = "Box plot of Cell.shape by Class", x = "Class", y = "Cell.shape")
+```
+
+## Model Training
+
+We will train classifiers using various algorithms:
+
+```{r train_classifiers}
+library(rpart)
+library(klaR)
+library(nnet)
+library(randomForest)
+
+### Train Decision Tree
+classifier_rpart <- rpart(Class ~ ., data = BreastCancer)
+
+### Train Naive Bayes
+classifier_nb <- NaiveBayes(Class ~ ., data = BreastCancer)
+
+### Train Neural Network
+classifier_nnet <- nnet(Class ~ ., data = BreastCancer, size = 1)
+
+### Train Linear Discriminant Analysis
+classifier_lda <- lda(Class ~ ., data = BreastCancer)
+
+### Train Random Forest
+classifier_rf <- randomForest(Class ~ ., data = BreastCancer)
+```
+
+## Ensemble Classification
+
+In this section, we'll combine predictions from the trained classifiers using the Majority Rule ensemble approach.
+
+```{r ensemble_classification}
+# Make predictions from each classifier and suppress warnings
+pred_rpart <- suppressWarnings(try(predict(classifier_rpart, newdata = BreastCancer, type = "class"), silent = TRUE))
+pred_nb <- suppressWarnings(try(predict(classifier_nb, newdata = BreastCancer), silent = TRUE))
+pred_nnet <- suppressWarnings(try(predict(classifier_nnet, newdata = BreastCancer, type = "class"), silent = TRUE))
+pred_lda <- suppressWarnings(try(predict(classifier_lda, newdata = BreastCancer)$class, silent = TRUE))
+pred_rf <- suppressWarnings(try(predict(classifier_rf, newdata = BreastCancer), silent = TRUE))
+
+# Check for errors in predictions
+if (class(pred_rpart) == "try-error" || class(pred_nb) == "try-error" || 
+    class(pred_nnet) == "try-error" || class(pred_lda) == "try-error" || 
+    class(pred_rf) == "try-error") {
+  cat("Error: Unable to make predictions from one or more classifiers.\n")
+} else {
+  # Combine predictions using Majority Rule
+  ensemble_predictions <- ifelse(
+      rowSums(cbind(pred_rpart == "malignant", pred_nb == "malignant", 
+                    pred_nnet == "malignant", pred_lda == "malignant", 
+                    pred_rf == "malignant")) >= 3, 
+      "malignant", "benign")
+  
+  # Calculate accuracy
+  accuracy <- mean(ensemble_predictions == BreastCancer$Class)
+  
+  # Display ensemble predictions for the first 10 rows
+  head(ensemble_predictions, 10)
+  
+  # Visualize ensemble predictions
+  library(ggplot2)
+  ggplot(data.frame(predictions = ensemble_predictions), aes(x = predictions)) +
+    geom_bar() +
+    labs(title = "Ensemble Predictions", x = "Predicted Class", y = "Count")
+}
+
+```
+
+## Performance Evaluation
+
+Let's evaluate the performance of our ensemble classifier using a confusion matrix.
+
+```{r confusion_matrix}
+library(caret)
+
+# Convert predicted classes to factors with the same levels as actual classes
+ensemble_predictions_factor <- factor(ensemble_predictions, levels = levels(BreastCancer$Class))
+
+# Convert actual classes to factors with the same levels as predicted classes
+actual_classes_factor <- factor(BreastCancer$Class, levels = levels(ensemble_predictions_factor))
+
+# Calculate confusion matrix
+conf_matrix <- confusionMatrix(ensemble_predictions_factor, actual_classes_factor)
+conf_matrix
+```
+
+## Conclusion
+
+In this project, we developed a heterogeneous ensemble classifier for breast cancer detection. By combining predictions from multiple classifiers using the Majority Rule ensemble approach, we achieved an accuracy of `r accuracy`%. The confusion matrix provides insights into the performance of our classifier.
+```
