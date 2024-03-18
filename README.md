@@ -35,8 +35,8 @@ install.packages("caret")
 - `caret`: For evaluating model performance and generating confusion matrix.
 
 ## Contributions
-- **Author:** [Your Name]
-- **Date:** [Date]
+- **Author:** [Mohamed Abdi]
+- **Date:** [3/17/24]
 
 ## Acknowledgments
 - This project is part of a data mining portfolio and demonstrates proficiency in building classification models using ensemble techniques.
